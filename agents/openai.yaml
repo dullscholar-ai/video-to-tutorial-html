@@ -1,0 +1,3 @@
+interface:
+  display_name: "Video → Illustrated Chinese Tutorial"
+  short_description: "Transcribe a video (faster-whisper GPU), translate to Chinese, and generate a branded single-file HTML tutorial with visual QA."

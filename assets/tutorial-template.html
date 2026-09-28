@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 工程级用法完全指南</title>
+<style>
+:root{
+  /* ── Anthropic official palette ── */
+  --paper:#FAF9F5;        /* Ivory light  */
+  --ivory:#F0EEE6;        /* Ivory medium */
+  --slate:#141413;        /* Slate dark   */
+  --slate-2:#3F3D35;
+  --muted:#6E6B60;
+  --faint:#8C897C;
+  --line:#E5E2D6;
+  --line-2:#D8D4C6;
+  --crail:#D97757;        /* Claude orange  */
+  --crail-deep:#C15F3C;
+  --book:#CC785C;         /* Book Cloth   */
+  --book-deep:#B0654A;
+  --kraft:#D4A27F;        /* Kraft        */
+  --kraft-deep:#9C6B33;
+  --manilla:#EBDBBC;      /* Manilla      */
+  --serif:"Tiempos Headline","Tiempos Text",Georgia,"Times New Roman","Noto Serif SC","Source Han Serif SC","STSong","SimSun",serif;
+  --sans:"Styrene A","Styrene B","Styrene",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:"Berkeley Mono","SF Mono","Cascadia Code",Consolas,"JetBrains Mono",monospace;
+  --sidebar-w:264px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--paper);color:var(--slate);line-height:1.85;font-size:16px}
+::selection{background:rgba(217,119,87,.28)}
+a{color:var(--crail-deep)}
+
+/* ───── progress bar ───── */
+#progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--crail),var(--book));z-index:99;transition:width .1s linear}
+
+/* ───── sidebar ───── */
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:#FCFBF7;border-right:1px solid var(--line);padding:28px 0 20px;overflow-y:auto;z-index:50;transition:transform .25s ease}
+#sidebar .brand{padding:0 24px 18px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:10px}
+#sidebar .brand svg{width:22px;height:22px;color:var(--crail);flex-shrink:0}
+#sidebar .brand .logo{font-family:var(--serif);font-size:1.2em;font-weight:700;color:var(--slate)}
+#sidebar .brand .logo em{color:var(--crail);font-style:normal}
+#sidebar .brand .sub{font-size:.74em;color:var(--muted);margin-top:1px}
+#sidebar nav a{display:flex;align-items:center;gap:10px;padding:8px 24px;color:var(--muted);text-decoration:none;font-size:.88em;border-left:3px solid transparent;transition:all .15s}
+#sidebar nav a .n{font-family:var(--mono);font-size:.78em;width:22px;color:var(--book);opacity:.8}
+#sidebar nav a:hover{color:var(--slate);background:var(--ivory)}
+#sidebar nav a.active{color:var(--crail-deep);background:rgba(204,120,92,.12);border-left-color:var(--crail);font-weight:600}
+#menu-btn{display:none;position:fixed;top:14px;left:14px;z-index:60;width:40px;height:40px;border:1px solid var(--line);border-radius:10px;background:#FCFBF7;cursor:pointer;color:var(--crail-deep)}
+#overlay{display:none;position:fixed;inset:0;background:rgba(20,20,19,.38);z-index:45}
+
+/* ───── main ───── */
+main{margin-left:var(--sidebar-w)}
+.wrap{max-width:860px;margin:0 auto;padding:0 40px}
+
+/* ───── hero ───── */
+.hero{padding:84px 0 64px;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;top:-180px;right:-140px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(217,119,87,.15),transparent 65%);pointer-events:none}
+.hero .kicker{display:inline-flex;align-items:center;gap:8px;font-size:.8em;letter-spacing:.14em;color:var(--crail-deep);text-transform:uppercase;font-weight:600;margin-bottom:18px}
+.hero .kicker::before{content:"";width:28px;height:2px;background:var(--crail)}
+.hero h1{font-family:var(--serif);font-size:3.1em;line-height:1.25;font-weight:700;letter-spacing:.01em}
+.hero h1 em{font-style:normal;color:var(--crail)}
+.hero .lead{margin-top:18px;color:var(--muted);font-size:1.08em;max-width:620px}
+.hero .chips{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:.8em;padding:5px 14px;border-radius:999px;background:#FCFBF7;border:1px solid var(--line);color:var(--muted)}
+.chip b{color:var(--crail-deep);font-weight:600}
+.hero .stats{display:flex;margin-top:34px;border:1px solid var(--line);border-radius:16px;background:#FCFBF7;overflow:hidden}
+.hero .stats div{flex:1;padding:18px 10px;text-align:center;border-right:1px solid var(--line)}
+.hero .stats div:last-child{border-right:none}
+.hero .stats b{display:block;font-family:var(--serif);font-size:1.7em;color:var(--crail-deep)}
+.hero .stats span{font-size:.78em;color:var(--muted)}
+
+/* ───── chapters ───── */
+.chapter{padding:64px 0 20px;border-top:1px solid var(--line)}
+.ch-head{display:flex;align-items:baseline;gap:16px;margin-bottom:8px}
+.ch-num{font-family:var(--serif);font-size:3.2em;font-weight:700;color:transparent;-webkit-text-stroke:1.5px var(--crail);line-height:1;flex-shrink:0}
+.ch-head h2{font-family:var(--serif);font-size:1.9em;font-weight:700;line-height:1.35}
+.ch-sub{color:var(--muted);font-size:.95em;margin:6px 0 26px;padding-left:2px}
+h3{font-family:var(--serif);font-size:1.28em;margin:34px 0 12px;color:var(--slate)}
+h3::before{content:"§ ";color:var(--crail)}
+h4{font-size:1.02em;margin:20px 0 8px;color:var(--book-deep)}
+h4 svg{width:1.05em;height:1.05em;vertical-align:-0.16em;margin-right:4px;color:var(--book)}
+p{margin:10px 0}
+ul,ol{padding-left:26px;margin:10px 0}
+li{margin:6px 0}
+li::marker{color:var(--crail)}
+b,strong{font-weight:650}
+code{font-family:var(--mono);font-size:.86em;background:var(--ivory);border:1px solid var(--line);padding:1px 6px;border-radius:5px;color:var(--crail-deep);white-space:nowrap}
+pre{font-family:var(--mono);font-size:.86em;line-height:1.7}
+
+/* ───── inline svg icons ───── */
+.ic{width:1.15em;height:1.15em;vertical-align:-0.2em;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ic.fill{fill:currentColor;stroke:none}
+
+/* ───── terminal ───── */
+.term{background:var(--slate);border-radius:12px;margin:18px 0;overflow:hidden;box-shadow:0 6px 22px rgba(20,20,19,.16)}
+.term-bar{display:flex;align-items:center;gap:7px;padding:10px 16px;background:#22211C;border-bottom:1px solid #33322A}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot.r{background:#C96A5E}.dot.y{background:#CBA95C}.dot.g{background:#7E9A66}
+.term-title{margin-left:8px;font-size:.75em;color:var(--faint);font-family:var(--mono)}
+.term pre{padding:16px 20px;color:#F5F4EF;overflow-x:auto;margin:0}
+.term .cmt{color:#8C897C}
+.term .cmd{color:#F5F4EF}
+.term .out{color:var(--kraft)}
+
+/* ───── prompt bubble ───── */
+.prompt{display:flex;gap:12px;margin:14px 0;background:#FCFBF7;border:1px solid var(--line);border-radius:14px;padding:14px 18px}
+.prompt .avatar{width:34px;height:34px;border-radius:10px;background:rgba(204,120,92,.14);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.prompt .avatar svg{width:17px;height:17px;color:var(--book-deep)}
+.prompt .body{flex:1;min-width:0}
+.prompt .label{font-size:.72em;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;margin-bottom:3px}
+.prompt .text{font-family:var(--mono);font-size:.9em;color:var(--slate)}
+.prompt .text .cursor{display:inline-block;width:8px;height:1.05em;background:var(--crail);vertical-align:text-bottom;margin-left:2px}
+
+/* ───── quote ───── */
+.quote{margin:26px 0;padding:22px 28px;background:#FCFBF7;border:1px solid var(--line);border-left:4px solid var(--crail);border-radius:0 14px 14px 0;position:relative}
+.quote::before{content:"\201C";position:absolute;top:2px;left:14px;font-family:var(--serif);font-size:3.4em;color:var(--crail);opacity:.3;line-height:1}
+.quote p{font-family:var(--serif);font-size:1.06em;font-style:italic;color:var(--slate);margin:0 0 8px;padding-left:26px}
+.quote cite{display:block;text-align:right;font-size:.82em;color:var(--muted);font-style:normal}
+
+/* ───── callout ───── */
+.co{border-radius:14px;padding:16px 20px 16px 18px;margin:18px 0;border:1px solid;display:flex;gap:13px;align-items:flex-start}
+.co .ico{flex-shrink:0;margin-top:4px}
+.co .ico svg{width:20px;height:20px;display:block}
+.co .bd{flex:1}
+.co .bd>b:first-child{display:block;margin-bottom:3px}
+.co p b{display:inline}
+.co p{margin:4px 0}
+.co.tip{background:#F6EAE3;border-color:#EBD6C9}
+.co.tip .ico{color:var(--book-deep)}.co.tip b{color:var(--book-deep)}
+.co.key{background:#F8EFDA;border-color:#EAD9AC}
+.co.key .ico{color:var(--kraft-deep)}.co.key b{color:var(--kraft-deep)}
+.co.warn{background:#F3E4DC;border-color:#E5C4B2}
+.co.warn .ico{color:#A5502F}.co.warn b{color:#A5502F}
+.co.info{background:#EFEDE4;border-color:#DBD8C9}
+.co.info .ico{color:var(--slate-2)}.co.info b{color:var(--slate-2)}
+
+/* ───── cards ───── */
+.grid{display:grid;gap:14px;margin:18px 0}
+.grid.c2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.grid.c3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.grid.c4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.card{background:#FCFBF7;border:1px solid var(--line);border-radius:14px;padding:20px 22px;transition:all .2s}
+.card:hover{border-color:var(--crail);box-shadow:0 8px 24px rgba(193,95,60,.12);transform:translateY(-2px)}
+.card .ic{width:25px;height:25px;margin-bottom:10px;color:var(--book);display:block}
+.card h4{margin:0 0 6px;font-size:1em;color:var(--slate)}
+.card h4 svg{color:var(--book);width:1.05em;height:1.05em;vertical-align:-0.15em;margin-right:5px}
+.card p{margin:0;font-size:.88em;color:var(--muted);line-height:1.7}
+.card .mini{margin-top:10px;font-size:.8em;color:var(--muted)}
+.card.accent{border-color:#EBD6C9;background:#F6EAE3}
+.card.soft{border-color:#EAD9AC;background:#F8EFDA}
+
+/* ───── flow ───── */
+.flow{display:flex;align-items:stretch;flex-wrap:wrap;gap:0;margin:20px 0}
+.fstep{flex:1;min-width:104px;background:#FCFBF7;border:1px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center}
+.fstep svg{width:24px;height:24px;display:block;margin:0 auto 6px;color:var(--book)}
+.fstep b{display:block;font-size:.9em}
+.fstep i{display:block;font-style:normal;font-size:.74em;color:var(--muted);margin-top:3px;line-height:1.5}
+.farr{align-self:center;color:var(--crail);font-size:1.25em;padding:0 8px;flex-shrink:0}
+.fstep.hl{border-color:#EBD6C9;background:#F6EAE3}
+.fstep.hl svg{color:var(--crail-deep)}
+.fstep.ok{border-color:#E3DCC0;background:#F6F2E2}
+.fstep.ok svg{color:var(--kraft-deep)}
+
+/* ───── table ───── */
+.tblwrap{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:14px;background:#FCFBF7}
+table{width:100%;border-collapse:collapse;font-size:.9em;min-width:560px}
+th{background:var(--ivory);font-weight:650;color:var(--book-deep);text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--slate-2)}
+tr:last-child td{border-bottom:none}
+td code{white-space:normal}
+td small{color:var(--faint)}
+
+/* ───── tree ───── */
+.tree{background:var(--slate);border-radius:12px;padding:20px 26px;margin:18px 0;font-family:var(--mono);font-size:.85em;line-height:2;overflow-x:auto;color:#F5F4EF}
+.tree .d{color:var(--kraft)}
+.tree .f{color:var(--crail)}
+.tree .t{color:var(--faint);font-style:italic}
+
+/* ───── kbd ───── */
+.kb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin:18px 0}
+.kb{display:flex;align-items:flex-start;gap:14px;background:#FCFBF7;border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.kb .keys{flex-shrink:0;min-width:92px;padding-top:2px}
+.kbd{display:inline-block;font-family:var(--mono);font-size:.8em;background:var(--ivory);border:1px solid var(--line-2);border-bottom-width:2.5px;border-radius:7px;padding:2px 9px;margin:2px 3px 2px 0;color:var(--slate)}
+.kb .what b{display:block;font-size:.9em;margin-bottom:2px}
+.kb .what span{font-size:.82em;color:var(--muted);line-height:1.6;display:block}
+
+/* ───── Q&A ───── */
+.qa{background:#FCFBF7;border:1px solid var(--line);border-radius:16px;margin:18px 0;overflow:hidden}
+.qa .q{display:flex;gap:12px;padding:16px 22px;background:#F6EAE3;border-bottom:1px solid var(--line)}
+.qa .q .qm{font-family:var(--serif);font-weight:700;color:var(--crail-deep);font-size:1.2em;flex-shrink:0}
+.qa .q p{margin:0;font-weight:600}
+.qa .a{display:flex;gap:12px;padding:16px 22px}
+.qa .a .am{font-family:var(--serif);font-weight:700;color:var(--slate-2);font-size:1.2em;flex-shrink:0}
+.qa .a p{margin:6px 0;font-size:.94em}
+.qa .a p:first-of-type{margin-top:0}
+.qa .a p:last-of-type{margin-bottom:0}
+
+/* ───── roadmap ───── */
+.road{margin:24px 0;position:relative;padding-left:34px}
+.road::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:var(--line-2)}
+.road-item{position:relative;padding:0 0 26px}
+.road-item:last-child{padding-bottom:0}
+.road-item::before{content:"";position:absolute;left:-30px;top:6px;width:14px;height:14px;border-radius:50%;background:var(--crail);border:3px solid var(--paper);box-shadow:0 0 0 2px var(--crail)}
+.road-item .lv{font-size:.72em;letter-spacing:.12em;text-transform:uppercase;color:var(--crail-deep);font-weight:700}
+.road-item h4{margin:2px 0 6px;font-size:1.05em;color:var(--slate)}
+.road-item p{margin:0;font-size:.92em;color:var(--muted)}
+
+/* ───── checklist ───── */
+.check{margin:18px 0}
+.check li{list-style:none;padding-left:36px;position:relative;margin:11px 0}
+.check li::before{content:"";position:absolute;left:0;top:4px;width:22px;height:12px;border-left:2.5px solid var(--book);border-bottom:2.5px solid var(--book);transform:rotate(-48deg) scale(.72)}
+
+/* ───── tags ───── */
+.tag{display:inline-block;font-size:.74em;padding:2px 10px;border-radius:999px;margin-right:6px;font-weight:600}
+.tag.g{background:rgba(204,120,92,.16);color:var(--book-deep)}
+.tag.o{background:rgba(20,20,19,.08);color:var(--slate-2)}
+.tag.b{background:rgba(212,162,127,.22);color:var(--kraft-deep)}
+.tag.p{background:rgba(217,119,87,.2);color:var(--crail-deep)}
+
+/* ───── back to top ───── */
+#top-btn{position:fixed;right:26px;bottom:26px;width:44px;height:44px;border-radius:12px;background:var(--crail);color:#FCFBF7;border:none;cursor:pointer;opacity:0;pointer-events:none;transition:all .25s;box-shadow:0 6px 18px rgba(193,95,60,.35);z-index:40;display:flex;align-items:center;justify-content:center}
+#top-btn svg{width:18px;height:18px;stroke:#FCFBF7;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#top-btn.show{opacity:1;pointer-events:auto}
+#top-btn:hover{background:var(--crail-deep)}
+
+/* ───── footer ───── */
+footer{border-top:1px solid var(--line);margin-top:70px;padding:44px 0 60px;text-align:center;color:var(--muted);font-size:.86em}
+footer .f-logo{font-family:var(--serif);font-size:1.3em;color:var(--slate);margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px}
+footer .f-logo svg{width:20px;height:20px;color:var(--crail)}
+footer p{margin:4px 0}
+footer a{color:var(--crail-deep);text-decoration:none;border-bottom:1px dotted var(--crail)}
+footer a:hover{border-bottom-style:solid}
+
+.divider-note{text-align:center;color:var(--faint);font-size:.85em;margin:40px 0 0;padding-top:24px;border-top:1px dashed var(--line-2)}
+
+@media(max-width:1020px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:translateX(0)}
+  #menu-btn{display:block}
+  #overlay.show{display:block}
+  main{margin-left:0}
+  .wrap{padding:0 22px}
+  .hero h1{font-size:2.2em}
+  .hero .stats{flex-wrap:wrap}
+  .hero .stats div{flex:1 1 40%;border-bottom:1px solid var(--line)}
+  .ch-num{font-size:2.4em}
+  .ch-head h2{font-size:1.5em}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ SVG icon sprite (Anthropic-style line icons) ══════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2.6c.5 3.9 1.4 6.2 2.9 7.1 1.4.9 3.6 1.4 6.5 1.6-3 .5-5.1 1.2-6.4 2.3-1.3 1-2.3 3.2-3 6.6-.6-3.4-1.6-5.6-3-6.6-1.3-1.1-3.4-1.8-6.4-2.3 3-.2 5.2-.7 6.6-1.6 1.4-.9 2.3-3.2 2.8-7.1z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/><path d="M19 15v4" stroke-dasharray="1.5 2.6"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 6.5 3.5 12 8 17.5M16 6.5 20.5 12 16 17.5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="m7 9.5 3 3-3 3M12.5 15.5H17"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 2.8v5.4c0 4.4-2.9 7.4-7 9.3-4.1-1.9-7-4.9-7-9.3V5.8z"/><path d="m9 11.6 2.2 2.2 4-4.4"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.4" r="3.6"/><path d="M5 19.2c1.5-3.4 4-5 7-5s5.5 1.6 7 5"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="15" rx="2"/><path d="M4 10.5h16M9 3.5v4M15 3.5v4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.2-4.2"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.2 21 19.2H3z"/><path d="M12 10.2v4M12 16.9h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5M12 7.8h.01"/></symbol>
+    <symbol id="i-arr" viewBox="0 0 24 24"><path d="M4.5 12h15M13.5 5.5 20 12l-6.5 6.5"/></symbol>
+    <symbol id="i-check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m8.4 12.4 2.5 2.6 4.9-5.4"/></symbol>
+    <symbol id="i-block" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3.2v4.6M15 3.2v4.6"/><path d="M7 7.8h10v4.2a5 5 0 0 1-10 0z"/><path d="M12 17v3.8"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r=".9" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m14.8 9.2-1.9 4.7-4.7 1.9 1.9-4.7z"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9.3 3h5.4M10 3v5.3L5.1 17a2.5 2.5 0 0 0 2.2 3.7h9.4a2.5 2.5 0 0 0 2.2-3.7L14 8.3V3"/><path d="M7.4 14.2h9.2"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3.5" y="7" width="17" height="13" rx="2"/><circle cx="12" cy="13.2" r="3.6"/><path d="M8.5 7l1.3-2.2h4.4L15.5 7"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 3H20v18H6.5A2.5 2.5 0 0 1 4 18.5v-13A2.5 2.5 0 0 1 6.5 3z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 6.7A2 2 0 0 1 5.5 4.7h4l2 2.6h7a2 2 0 0 1 2 2v8.2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.4 21 8.4l-9 5-9-5z"/><path d="m4.5 12.4 7.5 4.2 7.5-4.2M4.5 16.4 12 20.6l7.5-4.2"/></symbol>
+    <symbol id="i-sitemap" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="5" rx="1.2"/><rect x="3" y="16" width="6" height="5" rx="1.2"/><rect x="15" y="16" width="6" height="5" rx="1.2"/><path d="M12 8v4M12 12v0M6 16v-1.5A1.5 1.5 0 0 1 7.5 13h9a1.5 1.5 0 0 1 1.5 1.5V16"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.6"/><circle cx="17.5" cy="5.5" r="2.6"/><circle cx="17.5" cy="18.5" r="2.6"/><path d="m8.4 10.8 6.8-4M8.4 13.2l6.8 4"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5.5 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v.5"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6.5 4v9.5"/><circle cx="6.5" cy="17.8" r="2.6"/><circle cx="17.5" cy="6.2" r="2.6"/><path d="M17.5 8.8a9 9 0 0 1-8.5 8.9"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9"/></symbol>
+    <symbol id="i-app" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3 9h18M6 6.8h.01M8.6 6.8h.01"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.8 4.8 13.4h6L9.6 21.2 19.2 10h-6z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6.6 18.6h10.9a4 4 0 0 0 .7-7.9 5.5 5.5 0 0 0-10.7-1.2 4.3 4.3 0 0 0-.9 9.1z"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5.5 21V4"/><path d="M5.5 4.8c4.4-2 8.3 2.1 13 .4V15c-4.7 1.7-8.6-2.4-13-.4z"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4.4 3.5 6.4v13.2L9 17.6l6 2 5.5-2V4.4L15 6.4z"/><path d="M9 4.4v13.2M15 6.4v13.2"/></symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6.4" r="2.3"/><circle cx="6" cy="17.6" r="2.3"/><path d="M7.9 8 19.5 16.4M7.9 16 19.5 7.6"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8.4v7.2a2 2 0 0 1-1 1.7l-7 4a2 2 0 0 1-2 0l-7-4a2 2 0 0 1-1-1.7V8.4a2 2 0 0 1 1-1.7l7-4a2 2 0 0 1 2 0l7 4a2 2 0 0 1 1 1.7z"/><path d="M3.3 7.4 12 12.2l8.7-4.8M12 21.6V12.2"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></symbol>
+  </defs>
+</svg>
+
+<div id="progress"></div>
+<button id="menu-btn" aria-label="菜单"><svg class="ic" style="width:18px;height:18px;vertical-align:middle"><use href="#i-menu"/></svg></button>
+<div id="overlay"></div>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside id="sidebar">
+  <div class="brand">
+    <svg class="fill"><use href="#i-spark"/></svg>
+    <div>
+      <div class="logo">Claude <em>Code</em></div>
+      <div class="sub">工程级用法 · 完全指南</div>
+    </div>
+  </div>
+  <nav id="toc">
+    <a href="#c1"><span class="n">01</span>认识 Claude Code</a>
+    <a href="#c2"><span class="n">02</span>首次启动与设置</a>
+    <a href="#c3"><span class="n">03</span>代码库问答</a>
+    <a href="#c4"><span class="n">04</span>编辑代码</a>
+    <a href="#c5"><span class="n">05</span>接入团队工具</a>
+    <a href="#c6"><span class="n">06</span>三大工作流</a>
+    <a href="#c7"><span class="n">07</span>CLAUDE.md 记忆</a>
+    <a href="#c8"><span class="n">08</span>上下文拉取全景</a>
+    <a href="#c9"><span class="n">09</span>配置层级与共享</a>
+    <a href="#c10"><span class="n">10</span>快捷键速查</a>
+    <a href="#c11"><span class="n">11</span>Claude Code SDK</a>
+    <a href="#c12"><span class="n">12</span>并行多个 Claude</a>
+    <a href="#c13"><span class="n">13</span>Q&amp;A 精华</a>
+    <a href="#c14"><span class="n">14</span>学习路线图</a>
+  </nav>
+</aside>
+
+<main>
+<div class="wrap">
+
+<!-- ══════════ HERO ══════════ -->
+<header class="hero">
+  <div class="kicker">Code w/ Claude · 实战演讲全记录</div>
+  <h1>Claude Code<br><em>工程级用法</em>完全指南</h1>
+  <p class="lead">从"只看到一个提示词输入框"到工程团队的并行协作利器——本文基于 Claude Code 创始人 Boris Cherny 的实战演讲整理，覆盖从个人入门到团队工程化的全部核心技巧。</p>
+  <div class="chips">
+    <span class="chip">演讲者 <b>Boris Cherny</b> · Anthropic 技术成员 · Claude Code 创始人</span>
+    <span class="chip">类型 <b>实战技巧</b>，不讲历史与理论</span>
+  </div>
+  <div class="stats">
+    <div><b>28</b><span>分钟演讲</span></div>
+    <div><b>14</b><span>个主题章节</span></div>
+    <div><b>20+</b><span>实用技巧</span></div>
+    <div><b>10+</b><span>提示词模板</span></div>
+    <div><b>2-3天</b><span>新员工入职提速</span></div>
+  </div>
+</header>
+
+<!-- ══════════ CH 1 ══════════ -->
+<section class="chapter" id="c1">
+  <div class="ch-head"><span class="ch-num">01</span><h2>认识 Claude Code</h2></div>
+  <p class="ch-sub">它不是又一个代码补全工具，而是一种全新的 AI 助手形态。</p>
+
+  <h3>AI 编程助手的三代演进</h3>
+  <div class="flow">
+    <div class="fstep"><svg><use href="#i-text"/></svg><b>第一代：补全一行</b><i>输入时猜测下一个词</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep"><svg><use href="#i-code"/></svg><b>第二代：补全几行</b><i>根据上下文生成代码片段</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep hl"><svg><use href="#i-spark"/></svg><b>现在：完全代理</b><i>自主完成整个任务</i></div>
+  </div>
+
+  <p>Claude Code 是<b>完全代理式（fully agentic）</b>的：它一次构建整个功能、编写完整的函数与文件、修复整个 Bug。你只需要说"去做这件事"，它自己会决定怎么做。</p>
+
+  <div class="grid c2">
+    <div class="card"><svg class="ic"><use href="#i-spark"/></svg><h4>完全代理式工作</h4><p>不是逐行补全，而是像一位工程师那样接收任务、自主拆解、直接交付完整结果。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-grid"/></svg><h4>兼容你现有的一切</h4><p>VS Code、Xcode、JetBrains、Vim、Emacs——每一个 IDE、每一个终端都能配合。Boris 调侃："Anthropic 有人对 JetBrains 忠贞不渝，'从冰冷的死手里都撬不出来'，但他们也在用 Claude Code。"</p></div>
+    <div class="card"><svg class="ic"><use href="#i-terminal"/></svg><h4>任何环境可运行</h4><p>本地终端、远程 SSH、Tmux 会话——无论你在哪种环境工作，它都能跑，不需要改变现有工作流。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-shield"/></svg><h4>代码永不离开本地</h4><p>不做索引、不上传、没有存代码的远程数据库、不用你的代码训练模型。代码由你掌控。</p></div>
+  </div>
+
+  <blockquote class="quote">
+    <p>如果你没用过这类自由发挥式的编码助手，打开它只看到一个提示词输入框，你可能会想：我拿它干什么？它是一件强力工具（power tool）——可以用来做很多事。</p>
+    <cite>—— Boris Cherny</cite>
+  </blockquote>
+
+  <div class="co info"><span class="ico"><svg><use href="#i-info"/></svg></span><div class="bd"><b>为什么是 CLI 而不是 IDE？</b>
+    <p>① Anthropic 内部 IDE 用什么的都有，终端是<b>最大公约数</b>；② 他们近距离看着模型进步的速度，认为年底之前人们可能就不再用 IDE 了——不想在 UI 层过度投入。详见 <a href="#c13">Q&amp;A</a>。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 2 ══════════ -->
+<section class="chapter" id="c2">
+  <div class="ch-head"><span class="ch-num">02</span><h2>首次启动与设置</h2></div>
+  <p class="ch-sub">五分钟把环境调顺，之后的每一次使用都会更顺畅。</p>
+
+  <h3>安装与启动</h3>
+  <div class="term">
+    <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span></div>
+    <pre><span class="cmt"># 安装（需要 Node.js）</span>
+<span class="cmd">npm install -g @anthropic-ai/claude-code</span>
+
+<span class="cmt"># 在项目目录中启动</span>
+<span class="cmd">claude</span></pre>
+  </div>
+
+  <h3>六项推荐设置</h3>
+  <div class="tblwrap"><table>
+    <thead><tr><th>设置项</th><th>作用</th><th>Boris 的说明</th></tr></thead>
+    <tbody>
+      <tr><td><code>/terminal-setup</code></td><td>启用 <kbd class="kbd">Shift+Enter</kbd> 换行</td><td>不用再打反斜杠换行，"让使用体验好那么一点"</td></tr>
+      <tr><td><code>/theme</code></td><td>切换主题</td><td>亮色 / 暗色 / 色盲友好主题</td></tr>
+      <tr><td><code>/install-github-app</code></td><td>安装 GitHub App</td><td>安装后可在任意 Issue / PR 中 <code>@claude</code>，让 Claude 直接参与协作</td></tr>
+      <tr><td><code>/allowed-tools</code></td><td>预授权常用工具</td><td>"对那些频繁弹窗问我的东西，我肯定这样配，免得每次都点确认"</td></tr>
+      <tr><td><code>/config</code></td><td>开启通知</td><td>任务完成或需要确认时提醒你</td></tr>
+      <tr><td>系统设置 → 辅助功能 → 听写</td><td>macOS 语音输入</td><td>双击听写键直接说出提示词，见下方</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="co key"><span class="ico"><svg><use href="#i-wave"/></svg></span><div class="bd"><b>Boris 的私人习惯：语音输入提示词</b>
+    <p>很多提示词他不手动敲，而是在 macOS「系统设置 → 辅助功能 → 听写」开启后，连按两下听写键直接说话。<b>像跟另一位工程师交流一样对 Claude Code 说需求</b>，不用打很多字——提示词说得具体些效果更好。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 3 ══════════ -->
+<section class="chapter" id="c3">
+  <div class="ch-head"><span class="ch-num">03</span><h2>第一步：代码库问答（Q&amp;A）</h2></div>
+  <p class="ch-sub">Boris 最推荐的入门方式，高于其他一切——先提问，别急着改代码。</p>
+
+  <div class="co tip"><span class="ico"><svg><use href="#i-star"/></svg></span><div class="bd"><b>最重要的一条建议</b>
+    <p>刚上手 Claude Code 时它太自由、什么都能做——那从什么开始？<b>从对代码库提问开始。</b>不要一上来就用花哨的工具，不要一上来就改代码。</p>
+  </div></div>
+
+  <h3>这是 Anthropic 新员工培训的第一课</h3>
+  <p>技术新人入职第一天：学 Claude Code → 下载配置 → <b>立刻开始对代码库提问</b>。过去技术入职要依赖老员工解答、自己翻代码、学内部工具，大约需要 <b>2–3 周</b>；现在只需要 <b>2–3 天</b>。</p>
+
+  <div class="flow">
+    <div class="fstep"><svg><use href="#i-calendar"/></svg><b>过去：2–3 周</b><i>问同事 · 翻代码 · 学工具</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep ok"><svg><use href="#i-bolt"/></svg><b>现在：2–3 天</b><i>直接问 Claude Code</i></div>
+  </div>
+
+  <h3>为什么从问答开始？</h3>
+  <ul>
+    <li>教会团队成员<b>如何写好提示词</b></li>
+    <li>建立能力边界的直觉：Claude Code <b>能做到什么</b>？哪些事需要你多扶一把？</li>
+    <li>学会判断什么能<b>一次搞定（one-shot）</b>，什么要两枪三枪，什么时候该进交互模式逐步来</li>
+  </ul>
+
+  <h3>零设置、即开即用</h3>
+  <p>问答用法的另一大优点：Claude Code <b>不做任何索引</b>——没有远程代码库、不上传代码、不训练模型。因此也<b>没有设置流程</b>：下载、启动、立刻提问，不用建索引、不用等待。</p>
+
+  <h3>七类实用提问模板</h3>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">理解代码用途</div><div class="text"><code>@RoutingController.py</code> 是怎么被使用的？<span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">如何实例化</div><div class="text">如何创建一个新的 <code>@app/services/ValidationTemplateFactory</code>？<span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">追问 Git 历史</div><div class="text">为什么 recoverFromException 要接收这么多参数？翻一下 git 历史，看看这些参数是怎么引入的<span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">修复溯源</div><div class="text">为什么 issue #18383 会发生？看看 <code>@api/login.ts</code> 里的 if/else<span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">版本追溯</div><div class="text">这个 API 是在哪个版本里发布的？<code>@api/v1/PreHooks.php</code><span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">PR 审查</div><div class="text">看看 PR #9383，仔细验证哪些应用版本受到了影响<span class="cursor"></span></div></div></div>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">周报生成</div><div class="text">我上周发布了（ship）什么？<span class="cursor"></span></div></div></div>
+
+  <div class="co info"><span class="ico"><svg><use href="#i-search"/></svg></span><div class="bd"><b>Claude 的回答为什么比 Ctrl+F 深？</b>
+    <p>问"这个类怎么用"时，它不会只做文本搜索——它会去找<b>实际的实例化示例</b>、翻 <b>Git 历史</b>查这些参数是谁在什么情形下引入的、关联了哪些 Issue，然后给出一份<b>像 Wiki 或文档一样</b>的深入回答。而且系统提示词里没有任何关于"查 Git 历史"的指令——"它知道，是因为模型本身够强。"</p>
+  </div></div>
+
+  <div class="co key"><span class="ico"><svg><use href="#i-calendar"/></svg></span><div class="bd"><b>Boris 每周一站会前的固定动作</b>
+    <p>问一句"我这周发布了什么？"——Claude Code 查 Git log、认出他的用户名，输出一份本周交付清单，他直接复制粘贴进周报文档。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 4 ══════════ -->
+<section class="chapter" id="c4">
+  <div class="ch-head"><span class="ch-num">04</span><h2>编辑代码：引导 Claude 用对工具</h2></div>
+  <p class="ch-sub">问答顺手之后，就可以让它动手改代码了——诀窍是先让它思考。</p>
+
+  <h3>精简的工具集，自动的编排</h3>
+  <p>Claude Code 内置的工具其实很少，但代理会<b>自己决定如何串联</b>它们完成任务——你不需要指定"先用哪个工具、再用哪个"：</p>
+  <div class="flow">
+    <div class="fstep"><svg><use href="#i-search"/></svg><b>搜索文件</b><i>探索代码</i></div>
+    <span class="farr">+</span>
+    <div class="fstep"><svg><use href="#i-terminal"/></svg><b>运行 Bash</b><i>执行命令</i></div>
+    <span class="farr">+</span>
+    <div class="fstep"><svg><use href="#i-text"/></svg><b>编辑文件</b><i>落实修改</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep hl"><svg><use href="#i-check-c"/></svg><b>完成目标</b><i>自动编排全流程</i></div>
+  </div>
+
+  <h3>关键技巧：写代码之前，先让它思考</h3>
+  <div class="co warn"><span class="ico"><svg><use href="#i-warn"/></svg></span><div class="bd"><b>常见反模式</b>
+    <p>直接要求"实现这个 3000 行的大功能"。有时它一次就能做对，但经常做出来的<b>完全不是你想要的</b>。</p>
+  </div></div>
+  <p>拿到想要结果的最简单办法：<b>让它先思考</b>。</p>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">先规划，经我批准后再动手</div><div class="text">在你写代码之前，先头脑风暴几个方案，做个计划，给我过目、等我批准<span class="cursor"></span></div></div></div>
+  <p>不需要用计划模式（plan mode）、不需要任何特殊工具——<b>只要开口要求</b>，Claude 自己会明白。</p>
+
+  <h3>最高频的"咒语"：commit push</h3>
+  <div class="prompt"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">Boris 用得最多的提示词</div><div class="text">commit push<span class="cursor"></span></div></div></div>
+  <p>这句咒语没有任何特别之处，但 Claude 聪明到能正确理解：它会<b>创建 commit → 推送到分支 → 建好分支 → 在 GitHub 上开好 PR</b>。你什么都不用解释——它会自己翻代码、翻 Git log，弄清你们的提交信息格式，然后用正确的方式完成一切。</p>
+
+  <h3>进阶提示词示例（来自演讲幻灯片）</h3>
+  <div class="tblwrap"><table>
+    <thead><tr><th>场景</th><th>提示词</th></tr></thead>
+    <tbody>
+      <tr><td>方案对比后再动手</td><td><code>Propose a few fixes for issue #8732, then implement the one I pick</code><br>为 issue #8732 提出几个修复方案，实现我选中的那个</td></tr>
+      <tr><td>要求深度思考</td><td><code>Identify edge cases not covered in @app/tests/signupTest.ts, then update the tests to cover these. Think hard</code><br>找出 signupTest.ts 未覆盖的边界情况，补齐测试。深度思考</td></tr>
+      <tr><td>一键提交</td><td><code>commit push</code></td></tr>
+      <tr><td>并行头脑风暴</td><td><code>Use 3 parallel agents to brainstorm ideas for how to clean up @services/aggregator/feed_service.cpp</code><br>用 3 个并行 agent 头脑风暴如何重构 feed_service.cpp</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ══════════ CH 5 ══════════ -->
+<section class="chapter" id="c5">
+  <div class="ch-head"><span class="ch-num">05</span><h2>接入团队工具（Bash / MCP）</h2></div>
+  <p class="ch-sub">用得更深入后，把团队的内部工具交给 Claude——这时它开始真正大放异彩。</p>
+
+  <p>工具一般分两类，Claude Code 都能使用：</p>
+
+  <div class="grid c2">
+    <div class="card"><svg class="ic"><use href="#i-terminal"/></svg><h4>Bash 批处理工具（CLI）</h4>
+      <p>直接在对话里告诉 Claude 你的 CLI 怎么用。下面以虚构的 <code>barley</code> CLI 为例：</p>
+      <div class="prompt" style="margin:12px 0 0"><div class="avatar"><svg><use href="#i-user"/></svg></div><div class="body"><div class="label">告诉 Claude 工具用法</div><div class="text">用 barley CLI 检查上一次训练的错误日志。先用 --help 查一下它怎么用<span class="cursor"></span></div></div></div>
+      <p class="mini">如果用得多，把这条写进 <a href="#c7">CLAUDE.md</a>，Claude 就能<b>跨会话记住它</b>。</p>
+    </div>
+    <div class="card"><svg class="ic"><use href="#i-plug"/></svg><h4>MCP 工具</h4>
+      <p>通过 Model Context Protocol 接入工具服务器：</p>
+      <div class="term" style="margin:12px 0 0"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span></div>
+<pre><span class="cmt"># 添加 MCP 服务器</span>
+<span class="cmd">$ claude mcp add barley_server -- node myserver</span>
+
+<span class="cmt"># 然后直接在对话中使用</span>
+<span class="out">用 barley MCP server 检查上一次训练的错误日志</span></pre></div>
+    </div>
+  </div>
+
+  <div class="co key"><span class="ico"><svg><use href="#i-target"/></svg></span><div class="bd"><b>核心理念：把"团队的武器库"交给 Claude</b>
+    <p>当你把 Claude Code 带到一个新代码库，可以把它当成"你团队的所有工具"——那些团队本来就在这个代码库上使用的工具，Claude Code 能<b>代你使用</b>它们。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 6 ══════════ -->
+<section class="chapter" id="c6">
+  <div class="ch-head"><span class="ch-num">06</span><h2>三大高效工作流</h2></div>
+  <p class="ch-sub">"教会 Claude 用工具，再想清楚工作流"——三种经过验证的协作模式。</p>
+
+  <div class="card" style="border-top:3px solid var(--crail)">
+    <h4><svg><use href="#i-compass"/></svg>工作流一：探索 → 规划 → 确认 → 编码 → 提交</h4>
+    <div class="flow">
+      <div class="fstep"><svg><use href="#i-search"/></svg><b>探索</b><i>读代码找根因</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-map"/></svg><b>规划</b><i>提几个方案</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-user"/></svg><b>确认</b><i>等你拍板</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-code"/></svg><b>编码</b><i>按计划实现</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-branch"/></svg><b>提交</b><i>commit push</i></div>
+    </div>
+    <p class="mini">这是第 4 章讲过的模式。在提示词里加 <code>ultrathink</code> 可以让 Claude 更深度地思考。</p>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--kraft);margin-top:14px">
+    <h4><svg><use href="#i-flask"/></svg>工作流二：测试先行 → 提交 → 编码 → 迭代</h4>
+    <div class="flow">
+      <div class="fstep"><svg><use href="#i-flask"/></svg><b>写测试</b><i>如 @app/services/foo 的测试</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-branch"/></svg><b>提交</b><i>先锁定期望行为</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-code"/></svg><b>编码</b><i>让测试通过</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-layers"/></svg><b>迭代</b><i>直到全部变绿</i></div>
+    </div>
+    <p class="mini">适合链接/接口尚未实现的场景：测试先写好、预期失败，提交后再让 Claude 实现功能使测试通过。</p>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--book);margin-top:14px">
+    <h4><svg><use href="#i-camera"/></svg>工作流三：编码 → 截图 → 迭代</h4>
+    <div class="flow">
+      <div class="fstep"><svg><use href="#i-code"/></svg><b>给设计稿</b><i>如 mock.png</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-app"/></svg><b>编码</b><i>实现 Web UI</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-camera"/></svg><b>截图对比</b><i>Puppeteer / iOS 模拟器</i></div><span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+      <div class="fstep"><svg><use href="#i-layers"/></svg><b>迭代</b><i>2-3 轮近乎完美</i></div>
+    </div>
+    <p class="mini">把设计稿交给 Claude 实现后，让它自动截图与设计稿对比并自行迭代。</p>
+  </div>
+
+  <blockquote class="quote">
+    <p>当 Claude 有办法检验自己的工作时——写单元测试、用 Puppeteer 截图、或用 iOS 模拟器截图——它就能自我迭代。给它一张设计稿，第一次就能做得挺好；让它迭代两三次，往往近乎完美。<b>给它一个能看到结果的反馈工具，这是一切的秘诀。</b></p>
+    <cite>—— Boris Cherny</cite>
+  </blockquote>
+
+  <div class="co tip"><span class="ico"><svg><use href="#i-compass"/></svg></span><div class="bd"><b>落地到你的领域</b>
+    <p>无论单元测试、集成测试，还是 App / Web 截图——<b>给 Claude 一种看到自己产出的方式</b>，它就会自己迭代、越做越好。同时心里要有数：什么任务让它直接写代码、什么先规划、什么要靠迭代，这样才知道怎么提示它。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 7 ══════════ -->
+<section class="chapter" id="c7">
+  <div class="ch-head"><span class="ch-num">07</span><h2>给 Claude 更多上下文：CLAUDE.md</h2></div>
+  <p class="ch-sub">上下文越多，决策越聪明——工程师脑中的系统知识，可以这样交给它。</p>
+
+  <p>作为在这个代码库工作的工程师，你脑中装着关于系统架构、历史演进和一切细节的海量上下文。把这些交给 Claude，它做出的决策就越好。最简单的方式就是 <b>CLAUDE.md</b>——一个特殊文件名：</p>
+
+  <ul>
+    <li>放在<b>项目根目录</b>（即你启动 <code>claude</code> 的目录），<b>每次会话开始时自动读入上下文</b>，本质上是第一条用户消息的一部分</li>
+    <li><code>CLAUDE.md</code> → <span class="tag g">提交进 Git</span> 写一次，全团队共享</li>
+    <li><code>CLAUDE.local.md</code> → <span class="tag o">不提交</span> 只属于你个人的本地配置</li>
+  </ul>
+
+  <h3>CLAUDE.md 里写什么？</h3>
+  <div class="grid c3">
+    <div class="card"><svg class="ic"><use href="#i-terminal"/></svg><h4>常用 Bash 命令</h4><p>构建、测试、部署等团队高频命令</p></div>
+    <div class="card"><svg class="ic"><use href="#i-plug"/></svg><h4>常用 MCP 工具</h4><p>团队内部工具的用法说明</p></div>
+    <div class="card"><svg class="ic"><use href="#i-sitemap"/></svg><h4>架构决策</h4><p>核心文件位置、重要设计取舍</p></div>
+    <div class="card"><svg class="ic"><use href="#i-book"/></svg><h4>风格指南</h4><p>代码风格约定（Anthropic 自己的 CLAUDE.md 就有）</p></div>
+    <div class="card"><svg class="ic"><use href="#i-folder"/></svg><h4>重要文件</h4><p>在这个代码库干活通常需要知道的</p></div>
+    <div class="card soft"><svg class="ic" style="color:var(--kraft-deep)"><use href="#i-scissors"/></svg><h4>保持简短</h4><p>太长只会白白消耗上下文，通常也没用——尽量精炼</p></div>
+  </div>
+
+  <div class="co info"><span class="ico"><svg><use href="#i-layers"/></svg></span><div class="bd"><b>嵌套目录的 CLAUDE.md：按需自动加载</b>
+    <p>除根目录外，你可以在<b>任何嵌套子目录</b>里放 CLAUDE.md——当 Claude 在那些目录里工作时会被<b>自动拉入</b>。公司还可以在<b>企业根目录</b>放一份跨所有代码库共享、由 IT 统一管理的 CLAUDE.md。详见下一章的层级全景。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 8 ══════════ -->
+<section class="chapter" id="c8">
+  <div class="ch-head"><span class="ch-num">08</span><h2>上下文拉取方式全景</h2></div>
+  <p class="ch-sub">Boris 自嘲：做这页幻灯片时特别头疼——因为拉取上下文的方式实在太多。</p>
+
+  <div class="tblwrap"><table>
+    <thead><tr><th>方式</th><th>位置</th><th>触发方式</th><th>加载时机</th></tr></thead>
+    <tbody>
+      <tr><td><b>CLAUDE.md</b></td><td>项目根目录 / 嵌套子目录 / 企业根目录</td><td>—</td><td>根目录与企业级<b>自动加载</b>；嵌套的在进入该目录工作时自动加载</td></tr>
+      <tr><td><b>用户级斜杠命令</b></td><td><code>~/.claude/commands/foo.md</code></td><td>输入 <code>/user:foo</code></td><td>按需</td></tr>
+      <tr><td><b>项目级斜杠命令</b></td><td><code>.claude/commands/foo.md</code>（可提交 Git）</td><td>输入 <code>/project:foo</code></td><td>按需</td></tr>
+      <tr><td><b>@ 提及文件</b></td><td>任意文件 / 文件夹</td><td>输入 <code>@/foo.py</code> 等</td><td>按需</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>真实案例：Claude Code 仓库自己就是这样运作的</h3>
+  <p>在 Claude Code 的 GitHub 仓库里，Issue 会被自动打上标签——那是一条<b>斜杠命令</b>加一个 <b>GitHub Action</b> 在跑：Claude Code 执行"给 Issue 打标签"这条命令，人不用管，"帮我们省了很多时间"。</p>
+
+  <div class="co tip"><span class="ico"><svg><use href="#i-flask"/></svg></span><div class="bd"><b>调优上下文的三个思考题</b>
+    <p>① 可以跑一个<b>提示词改进器</b>来打磨；② 这份上下文<b>给谁用</b>？③ 应该<b>每次都拉取</b>还是<b>按需拉取</b>？<b>跟团队共享</b>还是<b>个人偏好</b>？——花时间调优，做对了性能会大幅提升。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 9 ══════════ -->
+<section class="chapter" id="c9">
+  <div class="ch-head"><span class="ch-num">09</span><h2>配置层级：把好配置共享给团队</h2></div>
+  <p class="ch-sub">不只 CLAUDE.md——记忆、命令、权限、MCP，全都能按四层结构管理。</p>
+
+  <div class="tblwrap"><table>
+    <thead><tr><th>配置项</th><th>企业策略<br><small>全员共享</small></th><th>个人全局<br><small>仅自己</small></th><th>项目共享<br><small>提交 Git</small></th><th>项目个人<br><small>仅自己</small></th></tr></thead>
+    <tbody>
+      <tr><td><b>记忆</b></td><td><code>&lt;企业根目录&gt;/…/CLAUDE.md</code></td><td><code>~/.claude/CLAUDE.md</code></td><td><code>CLAUDE.md</code></td><td><code>CLAUDE.local.md</code></td></tr>
+      <tr><td><b>斜杠命令</b></td><td>—</td><td><code>~/.claude/commands/</code></td><td><code>.claude/commands/</code></td><td>—</td></tr>
+      <tr><td><b>权限</b></td><td><code>…/policies.json</code></td><td><code>~/.claude/settings.json</code></td><td><code>.claude/settings.json</code></td><td><code>.claude/settings.local.json</code></td></tr>
+      <tr><td><b>MCP 服务器</b></td><td><code>claude mcp</code></td><td><code>claude mcp</code></td><td><code>.mcp.json</code></td><td><code>claude mcp</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>企业策略的两个实战用途</h3>
+  <div class="grid c2">
+    <div class="card"><svg class="ic"><use href="#i-check-c"/></svg><h4>自动批准（给人解锁）</h4><p>如果全体员工都用同一条测试命令，把它写进企业策略文件——之后任何人运行都会<b>自动批准</b>，不再弹窗。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-block"/></svg><h4>安全拦截（保代码库安全）</h4><p>把永不该访问的 URL 加进黑名单——员工<b>无法覆盖</b>，这个 URL 就永远不会被 fetch。</p></div>
+  </div>
+
+  <div class="co key"><span class="ico"><svg><use href="#i-share"/></svg></span><div class="bd"><b>MCP 服务器团队共享</b>
+    <p>在代码库里提交一个 <code>.mcp.json</code>，之后任何人在这个仓库运行 Claude Code，都会被<b>提示一键安装</b>这些 MCP 服务器。</p>
+  </div></div>
+
+  <h3>不知道从哪层入手？</h3>
+  <p>Boris 坦言这张矩阵"有点吓人"——因为官方支持的东西非常多、每家公司的工作流又不同。他的建议是：<b>从「项目共享」层开始</b>——配置写一次、全组受益，形成<b>网络效应</b>：一个人做一点工作，所有人都受益。</p>
+
+  <h3>内置的管理工具</h3>
+  <div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">在 Claude Code 会话中</span></div>
+<pre><span class="cmt"># 查看当前生效的全部记忆文件（企业策略 / 用户 / 项目 / 嵌套…）</span>
+<span class="cmd">/memory</span>
+
+<span class="cmt"># 用 # 号记录信息时可选择存入哪个记忆文件</span>
+<span class="cmd"># 这个项目用 pnpm 而不是 npm</span></pre></div>
+
+  <div class="co info"><span class="ico"><svg><use href="#i-box"/></svg></span><div class="bd"><b>实际案例：Anthropic 的 apps 仓库</b>
+    <p>团队把 <b>Puppeteer MCP 服务器</b>的 <code>.mcp.json</code> 提交在仓库里——任何在该仓库工作的工程师都能直接用它跑<b>端到端测试、自动截图、自动迭代</b>，不需要每个人自己装一遍。</p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 10 ══════════ -->
+<section class="chapter" id="c10">
+  <div class="ch-head"><span class="ch-num">10</span><h2>快捷键速查（Interlude）</h2></div>
+  <p class="ch-sub">"终端极度极简，有些快捷键很难被发现"——这是一页值得收藏的速查表。</p>
+
+  <div class="kb-grid">
+    <div class="kb"><div class="keys"><span class="kbd">Shift</span>+<span class="kbd">Tab</span></div><div class="what"><b>自动接受编辑模式</b><span>编辑自动通过，Bash 命令仍需批准；之后随时可让它撤销。Boris 在"Claude 正在正轨上"或"它在写测试并自行迭代"时开启，省去逐次确认。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">#</span></div><div class="what"><b>让 Claude 记住一件事</b><span>比如它某个工具用错了，打 # 告诉它正确用法——它会自动写进 CLAUDE.md，从此记住。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">!</span></div><div class="what"><b>Bash 模式</b><span>直接运行本地命令，且<b>命令与输出都会进入上下文</b>，下一轮 Claude 就能看到。适合长耗时命令，或你确切知道要做什么时。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">Esc</span></div><div class="what"><b>随时安全中断</b><span>不管 Claude 在干什么，按 Esc 都不会损坏会话。比如它提了 20 行修改、其中 19 行完美只有 1 行要改——按 Esc 说一声，让它重做那 1 行。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">Esc</span>×2</div><div class="what"><b>跳回历史</b><span>连按两次 Esc，回退到对话历史中的上一步。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">Ctrl</span>+<span class="kbd">R</span></div><div class="what"><b>查看完整输出</b><span>展开全部输出——和 Claude 上下文窗口里看到的完全一致。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">@</span></div><div class="what"><b>@ 提及文件/文件夹</b><span>在对话中直接把文件或目录内容拉进上下文。</span></div></div>
+    <div class="kb"><div class="keys"><span class="kbd">claude --resume</span></div><div class="what"><b>恢复会话</b><span>会话结束后恢复指定会话；或用 <code>--continue</code> 直接继续上一次会话。</span></div></div>
+  </div>
+</section>
+
+<!-- ══════════ CH 11 ══════════ -->
+<section class="chapter" id="c11">
+  <div class="ch-head"><span class="ch-num">11</span><h2>Claude Code SDK：超级智能的 UNIX 工具</h2></div>
+  <p class="ch-sub">与 CLI 完全相同的代理循环——把 Claude 当作管道里的一个构件来用。</p>
+
+  <div class="flow">
+    <div class="fstep"><svg><use href="#i-app"/></svg><b>你的代理应用</b><i>脚本 / CI / 流水线</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep hl"><svg><use href="#i-bolt"/></svg><b>Claude Code SDK</b><i>同一套 agent loop</i></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep"><svg><use href="#i-cloud"/></svg><b>Anthropic / Bedrock / Vertex API</b></div>
+    <span class="farr"><svg class="ic" style="width:1em;height:1em;vertical-align:middle"><use href="#i-arr"/></svg></span>
+    <div class="fstep"><svg><use href="#i-spark"/></svg><b>Claude 模型</b></div>
+  </div>
+
+  <h3>基础用法：-p 标志</h3>
+  <div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span></div>
+<pre><span class="cmt"># 传入提示词、允许的工具（可含具体 Bash 命令）、输出格式</span>
+<span class="cmd">claude -p "summarize these changes" \</span>
+<span class="cmd">  --allowedTools '["Bash"]' \</span>
+<span class="cmd">  --output-format json \</span>
+<span class="cmd">  | jq .result</span></pre></div>
+  <p>输出格式可选 <code>json</code> 或 <code>streaming-json</code>（流式处理场景）。</p>
+
+  <h3>管道玩法</h3>
+  <div class="term"><div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span></div>
+<pre><span class="cmt"># git 变更管道输给 Claude 分析，jq 取回结果</span>
+<span class="cmd">git status | claude -p "explain these changes?" \</span>
+<span class="cmd">  --allowedTools '[]' --output-format json | jq .result</span>
+
+<span class="cmt"># 从 GCP 存储桶读一份巨大日志，让 Claude 找出有意思的东西</span>
+<span class="cmd">cat huge-log.txt | claude -p "what's interesting about this log?"</span></pre></div>
+
+  <blockquote class="quote">
+    <p>把它当成一个 UNIX 工具：给它一个提示词，它给你 JSON。可以管道输进去、管道输出来，组合是无穷的——这是一个<b>超级智能的 UNIX 工具</b>。我觉得我们连它的皮毛都还没摸到。</p>
+    <cite>—— Boris Cherny</cite>
+  </blockquote>
+
+  <h3>Anthropic 内部怎么用 SDK？</h3>
+  <ul>
+    <li><b>CI 流水线</b>——天天在用</li>
+    <li><b>事故响应（Incident Response）</b></li>
+    <li><b>各类自动化管道</b>——批量分析、数据加工</li>
+  </ul>
+</section>
+
+<!-- ══════════ CH 12 ══════════ -->
+<section class="chapter" id="c12">
+  <div class="ch-head"><span class="ch-num">12</span><h2>并行运行多个 Claude</h2></div>
+  <p class="ch-sub">演讲里"最高级的用法"——超级用户的共同习惯：同时跑多个 Claude。</p>
+
+  <p>Boris 自嘲是个 "Claude 普通用户"：一次只跑一个 Claude，顶多为几个仓库开几个终端标签页。但无论 Anthropic 内外的<b>高级用户（power users）</b>，几乎总是这样工作：</p>
+
+  <div class="grid c2">
+    <div class="card"><svg class="ic"><use href="#i-terminal"/></svg><h4>SSH + Tmux 隧道</h4><p>多个 SSH 会话，用 Tmux 隧道挂着自己的各个 Claude 会话。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-copy"/></svg><h4>同一仓库多份 Checkout</h4><p>把同一个仓库检出多份副本，在每份副本里并行跑一个 Claude。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-branch"/></svg><h4>Git Worktree 隔离</h4><p>用 git worktree 在同一仓库中开辟相互隔离的工作树，各自独立改代码。</p></div>
+    <div class="card"><svg class="ic"><use href="#i-gear"/></svg><h4>GitHub Actions 并行</h4><p>利用 GitHub Actions 让多个 Claude 在云端并行处理 Issue / PR。</p></div>
+  </div>
+
+  <div class="co info"><span class="ico"><svg><use href="#i-flag"/></svg></span><div class="bd"><b>官方正在改进</b>
+    <p>Boris 表示团队正在努力让这类并行用法<b>更容易上手</b>；眼下，上面这些就是与 Claude 并行做更多事情的思路。<b>会话数量不设限，并行能完成大量工作。</b></p>
+  </div></div>
+</section>
+
+<!-- ══════════ CH 13 ══════════ -->
+<section class="chapter" id="c13">
+  <div class="ch-head"><span class="ch-num">13</span><h2>Q&amp;A 精华</h2></div>
+  <p class="ch-sub">演讲结束后的现场问答，信息量同样很大。</p>
+
+  <div class="qa">
+    <div class="q"><span class="qm">Q1</span><p>开发 Claude Code 的过程中，实现上最难的部分是什么？</p></div>
+    <div class="a"><span class="am">A</span><div>
+      <p>难点很多，特别棘手的一块是<b>让 Bash 命令安全</b>。Bash 天生危险，会以意想不到的方式改变系统状态；但若每条命令都要人工批准，工程师根本没法高效工作——会不停地被弹窗打断。</p>
+      <p>而且不是所有人都在 Docker 容器里跑代码，要在各种代码库上做到既安全又可扩展很难。最终方案分三层：① 区分<b>只读命令</b>与修改命令；② 用<b>静态分析</b>判断哪些命令可以安全组合；③ 一套相当复杂的<b>分层权限系统</b>，支持在不同层级对命令做白名单与拦截。</p>
+    </div></div>
+  </div>
+
+  <div class="qa">
+    <div class="q"><span class="qm">Q2</span><p>Claude Code 支持多模态吗？是把图片路径指给它，还是有我不知道的功能？</p></div>
+    <div class="a"><span class="am">A</span><div>
+      <p><b>完全多模态，从第一天起就是。</b>因为是终端应用，所以不太容易被发现。三种方式都可以：① 直接把图片<b>拖放</b>进终端；② 给<b>文件路径</b>；③ <b>复制粘贴</b>图片。</p>
+      <p>Boris 的典型用法：手头有张设计稿 → 拖进来让它实现 → 再配一个 Puppeteer 服务器供它截图对比迭代——<b>全程全自动</b>。</p>
+    </div></div>
+  </div>
+
+  <div class="qa">
+    <div class="q"><span class="qm">Q3</span><p>为什么做成 CLI 工具而不是 IDE？</p></div>
+    <div class="a"><span class="am">A</span><div>
+      <p><b>原因一：兼容性。</b>Anthropic 的人用 VS Code、Zed、Xcode、Vim、Emacs 的都有，很难做出对所有人好用的东西——终端是最大公约数。</p>
+      <p><b>原因二：面向未来。</b>他们近距离看着模型进步的速度，认为很可能到年底人们就不再用 IDE 了——所以不想在 UI 和其他叠加层上过度投入，免得那些投入很快失去价值。</p>
+    </div></div>
+  </div>
+
+  <div class="qa">
+    <div class="q"><span class="qm">Q4</span><p>在机器学习 / 建模这类场景里，Claude Code 用得怎么样？</p></div>
+    <div class="a"><span class="am">A</span><div>
+      <p>用得很多。Anthropic 的工程师和研究员<b>每天都在用</b>——大约 <b>80% 的 Anthropic 技术人员每天使用 Claude Code</b>，包括研究员：他们会用 notebook 工具来编辑和运行 Jupyter Notebook。"希望你们能从产品里看到我们投入的爱和自吃狗粮（dog-fooding）。"</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════ CH 14 ══════════ -->
+<section class="chapter" id="c14">
+  <div class="ch-head"><span class="ch-num">14</span><h2>学习路线图：从入门到精通</h2></div>
+  <p class="ch-sub">把整场演讲浓缩为一条可执行的进阶路径。</p>
+
+  <div class="road">
+    <div class="road-item">
+      <span class="lv">阶段一 · 今天就能做</span>
+      <h4>安装并完成基础设置</h4>
+      <p>安装 Claude Code → 运行 <code>/terminal-setup</code>、<code>/theme</code> → 配好 <code>/allowed-tools</code> → （macOS）开启语音听写。</p>
+    </div>
+    <div class="road-item">
+      <span class="lv">阶段二 · 第一周</span>
+      <h4>只做代码库问答，先别改代码</h4>
+      <p>对代码库疯狂提问：这段代码怎么用、为什么这样设计、翻 Git 历史、生成本周交付清单。建立提示词手感与能力边界的直觉。</p>
+    </div>
+    <div class="road-item">
+      <span class="lv">阶段三 · 开始动手</span>
+      <h4>编辑代码，掌握工作流</h4>
+      <p>先规划再编码 → 学会 <code>commit push</code> 一键提交 → 按任务选择三大工作流 → <b>永远给它一个能检验自身的反馈工具</b>（测试 / 截图）→ 熟记快捷键。</p>
+    </div>
+    <div class="road-item">
+      <span class="lv">阶段四 · 团队工程化</span>
+      <h4>写 CLAUDE.md，接入团队工具</h4>
+      <p>编写精炼的项目 CLAUDE.md（常用命令、架构决策、风格指南）→ 接入 Bash CLI 与 MCP 工具 → 把 <code>.mcp.json</code>、斜杠命令、权限配置提交进仓库共享 → 用 <code>/memory</code> 管理。</p>
+    </div>
+    <div class="road-item">
+      <span class="lv">阶段五 · 高级玩法</span>
+      <h4>SDK 集成与并行协作</h4>
+      <p>用 <code>claude -p</code> 把 Claude 嵌进 CI / 事故响应 / 数据管道 → 多 checkout / git worktree / Tmux 并行跑多个 Claude。</p>
+    </div>
+  </div>
+
+  <h3>贯穿全场的心法清单</h3>
+  <ul class="check">
+    <li><b>上下文越多，表现越好</b>——花时间调优 CLAUDE.md 与工具配置，"做对了，性能会有戏剧性的提升"</li>
+    <li><b>给 Claude 一个反馈循环</b>——测试、截图、任何能检验工作的手段，它就会自己迭代到近乎完美</li>
+    <li><b>先规划，后编码</b>——"写代码之前先做个计划"，一句提示就能避免 3000 行返工</li>
+    <li><b>配置一次，全组受益</b>——从项目共享层开始，形成团队网络效应</li>
+    <li><b>像用同事一样用它</b>——直接说话、给上下文、提要求，不必微操每个工具调用</li>
+  </ul>
+
+  <p class="divider-note">—— 全文完 · 感谢阅读 ——</p>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="f-logo"><svg class="fill"><use href="#i-spark"/></svg>Claude <em style="color:var(--crail);font-style:normal">Code</em></div>
+  <p>本指南整理自 Boris Cherny（Anthropic 技术成员 · Claude Code 创始人）的实战演讲</p>
+  <p>内容基于语音转录与幻灯片画面整理翻译 · 命令与配置以 <a href="https://docs.anthropic.com/claude-code" target="_blank" rel="noopener">Claude Code 官方文档</a> 为准</p>
+</footer>
+
+</main>
+
+<button id="top-btn" title="回到顶部" aria-label="回到顶部"><svg><use href="#i-up"/></svg></button>
+
+<script>
+(function(){
+  var bar=document.getElementById('progress');
+  var topBtn=document.getElementById('top-btn');
+  var links=Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+  var chapters=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+
+  function onScroll(){
+    var h=document.documentElement;
+    var p=h.scrollTop/(h.scrollHeight-h.clientHeight);
+    bar.style.width=(p*100)+'%';
+    topBtn.classList.toggle('show',h.scrollTop>600);
+    var cur=-1;
+    chapters.forEach(function(sec,i){
+      if(sec&&sec.getBoundingClientRect().top<=140)cur=i;
+    });
+    links.forEach(function(a,i){a.classList.toggle('active',i===cur);});
+  }
+  document.addEventListener('scroll',onScroll,{passive:true});
+  onScroll();
+
+  topBtn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+
+  var sb=document.getElementById('sidebar'),ov=document.getElementById('overlay'),mb=document.getElementById('menu-btn');
+  function close(){sb.classList.remove('open');ov.classList.remove('show');}
+  mb.addEventListener('click',function(){sb.classList.toggle('open');ov.classList.toggle('show');});
+  ov.addEventListener('click',close);
+  links.forEach(function(a){a.addEventListener('click',close);});
+})();
+</script>
+</body>
+</html>
